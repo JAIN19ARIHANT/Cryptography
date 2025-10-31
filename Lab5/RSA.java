@@ -1,11 +1,8 @@
 package Lab5;
 
 import java.util.*;
-import java.math.BigInteger;
 
 public class RSA {
-    private static BigInteger p, q, n, phi, e, d;
-    private static Scanner sc = new Scanner(System.in);
 
     // ANSI escape codes for coloring terminal output
     static final String RED = "\u001b[31m";
@@ -13,161 +10,138 @@ public class RSA {
     static final String GREEN = "\u001b[32m";
     static final String RESET = "\u001b[0m";
 
-    private static boolean isPrime(BigInteger num) {
-        return num.isProbablePrime(20);
+    static boolean isPrime(int num) {
+        if (num <= 1) return false;
+        for (int i = 2; i <= Math.sqrt(num); i++) {
+            if (num % i == 0) return false;
+        }
+        return true;
     }
 
-    private static BigInteger gcd(BigInteger a, BigInteger b) {
-        if (b.equals(BigInteger.ZERO))
-            return a;
-        return gcd(b, a.mod(b));
+    static int gcd(int a, int b) {
+        if (b == 0) return a;
+        return gcd(b, a % b);
     }
 
-    private static void generateKeys() {
-        while (true) {
-            try {
-                System.out.print("\nEnter prime number p: ");
-                p = new BigInteger(sc.next());
-                System.out.print("Enter prime number q (different from p): ");
-                q = new BigInteger(sc.next());
-
-                if (!isPrime(p) || !isPrime(q)) {
-                    System.out.println(RED + "Error: Both p and q must be prime numbers. Try again!" + RESET);
-                    continue;
-                }
-                if (p.equals(q)) {
-                    System.out.println(RED + "Error: p and q must be different. Try again!" + RESET);
-                    continue;
-                }
-
-                n = p.multiply(q);
-                phi = (p.subtract(BigInteger.ONE)).multiply(q.subtract(BigInteger.ONE));
-
-                // Find all valid public keys e (1 < e < phi and gcd(e, phi) == 1)
-                List<BigInteger> validEs = new ArrayList<>();
-                // Limit search for e to 1000 for performance with small primes
-                for (BigInteger i = BigInteger.TWO; i.compareTo(BigInteger.valueOf(1000)) < 0 && i.compareTo(phi) < 0; i = i.add(BigInteger.ONE)) {
-                    if (gcd(i, phi).equals(BigInteger.ONE)) {
-                        validEs.add(i);
-                    }
-                }
-
-                if (validEs.isEmpty()) {
-                    System.out.println(RED + "No valid public keys found. Try different primes." + RESET);
-                    continue;
-                }
-
-                // Display options for e
-                System.out.println("\nSelect a public key (e) from the list below:");
-                int displayCount = Math.min(10, validEs.size());
-                for (int i = 0; i < displayCount; i++) {
-                    System.out.println((i + 1) + ". " + BLUE + validEs.get(i) + RESET);
-                }
-
-                int choice;
-                while (true) {
-                    System.out.print("Enter your choice (1-" + displayCount + "): ");
-                    try {
-                        choice = sc.nextInt();
-                        if (choice >= 1 && choice <= displayCount)
-                            break;
-                        else
-                            System.out.println(RED + "Invalid choice! Please choose between 1 and " + displayCount + RESET);
-                    } catch (Exception ex) {
-                        System.out.println(RED + "Invalid input! Enter a number between 1 and " + displayCount + RESET);
-                        sc.nextLine(); // Clear scanner buffer
-                    }
-                }
-
-                e = validEs.get(choice - 1);
-                d = e.modInverse(phi);
-
-                System.out.println(GREEN + "\nKeys generated successfully!" + RESET);
-                System.out.println("Public Key (e, n): " + BLUE + "(" + e + ", " + n + ")" + RESET);
-                System.out.println("Private Key (d, n): " + BLUE + "(" + d + ", " + n + ")" + RESET);
-                break; // Exit key generation loop
-
-            } catch (Exception ex) {
-                System.out.println(RED + "Enter valid integers." + RESET);
-                sc.nextLine(); // Clear scanner buffer
-            }
+    static int modInverse(int e, int phi) {
+        for (int d = 2; d < phi; d++) {
+            if ((d * e) % phi == 1)
+                return d;
         }
+        return -1;
     }
 
-    private static void encrypt() {
-        if (e == null || n == null) {
-            System.out.println(RED + "Please generate RSA keys first!" + RESET);
-            return;
+    static int modPow(int base, int exp, int mod) {
+        int result = 1;
+        base = base % mod;
+        while (exp > 0) {
+            if ((exp & 1) == 1)
+                result = (result * base) % mod;
+            exp = exp >> 1;
+            base = (base * base) % mod;
         }
-
-        try {
-            System.out.print("Enter a number to encrypt: ");
-            BigInteger message = sc.nextBigInteger();
-
-            if (message.compareTo(n) >= 0 || message.compareTo(BigInteger.ZERO) < 0) {
-                System.out.println(RED + "Message must be a positive number smaller than n (" + n + ")" + RESET);
-                return;
-            }
-
-            BigInteger cipher = message.modPow(e, n);
-            System.out.println("Encrypted number: " + BLUE + cipher + RESET);
-        } catch (Exception ex) {
-            System.out.println(RED + "Invalid input! Please enter a valid number." + RESET);
-            sc.nextLine(); // Clear scanner buffer
-        }
-    }
-
-    private static void decrypt() {
-        if (d == null || n == null) {
-            System.out.println(RED + "Please generate RSA keys first!" + RESET);
-            return;
-        }
-
-        try {
-            System.out.print("Enter encrypted number: ");
-            BigInteger cipher = sc.nextBigInteger();
-
-            if (cipher.compareTo(BigInteger.ZERO) < 0 || cipher.compareTo(n) >= 0) {
-                System.out.println(RED + "Cipher must be between 0 and n (" + n + ")" + RESET);
-                return;
-            }
-
-            BigInteger decrypted = cipher.modPow(d, n);
-            System.out.println("Decrypted number: " + BLUE + decrypted + RESET);
-        } catch (Exception ex) {
-            System.out.println(RED + "Invalid input! Please enter a valid encrypted number." + RESET);
-            sc.nextLine(); // Clear scanner buffer
-        }
+        return result;
     }
 
     public static void main(String[] args) {
-        System.out.println(GREEN + "==== RSA Number Encryption ====" + RESET);
-        generateKeys();
+        Scanner sc = new Scanner(System.in);
 
-        int choice = 0;
+        int p, q;
         while (true) {
-            System.out.println("\n----- MENU -----");
-            System.out.println("1. Encrypt a Number");
-            System.out.println("2. Decrypt a Number");
-            System.out.println("3. End");
-            System.out.print("Enter your choice: ");
+            System.out.print("Enter first prime number (p): ");
+            p = sc.nextInt();
+            System.out.print("Enter second prime number (q): ");
+            q = sc.nextInt();
 
-            try {
-                choice = sc.nextInt();
-            } catch (Exception e) {
-                System.out.println(RED + "Invalid choice! Please enter 1–3." + RESET);
-                sc.nextLine(); // Clear scanner buffer
+            if (!isPrime(p) || !isPrime(q)) {
+                System.out.println(RED + "❌ Both numbers must be prime. Try again.\n" + RESET);
                 continue;
             }
+            if (p == q) {
+                System.out.println(RED + "❌ p and q must be different primes. Try again.\n" + RESET);
+                continue;
+            }
+            break;
+        }
+
+        int n = p * q;
+        int phi = (p - 1) * (q - 1);
+
+        System.out.println(GREEN + "\nCalculated Values:" + RESET);
+        System.out.println("n = " + BLUE + n + RESET);
+        System.out.println("φ(n) = " + BLUE + phi + RESET);
+
+        List<Integer> validEs = new ArrayList<>();
+        for (int i = 2; i < phi; i++) {
+            if (gcd(i, phi) == 1) {
+                validEs.add(i);
+            }
+        }
+
+        System.out.println("\nPossible Public Keys (e values):");
+        System.out.print(BLUE); // Set color for the list
+        for (int i = 0; i < validEs.size(); i++) {
+            System.out.print(validEs.get(i) + (i < validEs.size() - 1 ? ", " : ""));
+        }
+        System.out.println(RESET); // Reset color after the list
+
+        int e;
+        while (true) {
+            System.out.print("\nSelect your public key 'e' from the list above: ");
+            e = sc.nextInt();
+            if (validEs.contains(e)) break;
+            System.out.println(RED + " Invalid choice. Please choose a value of 'e' from the list." + RESET);
+        }
+
+        System.out.println(GREEN + " Selected Public Key (e, n) = " + RESET + BLUE + "(" + e + ", " + n + ")" + RESET);
+
+        int d = modInverse(e, phi);
+        if (d == -1) {
+            System.out.println(RED + " Could not find private key d." + RESET);
+            return;
+        }
+        System.out.println(GREEN + " Private Key (d, n) = " + RESET + BLUE + "(" + d + ", " + n + ")" + RESET);
+
+        while (true) {
+            System.out.println("\n===== RSA Menu =====");
+            System.out.println("1. Encrypt a message");
+            System.out.println("2. Decrypt a message");
+            System.out.println("3. Exit");
+            System.out.print("Choose an option (1-3): ");
+            int choice = sc.nextInt();
 
             switch (choice) {
-                case 1 -> encrypt();
-                case 2 -> decrypt();
-                case 3 -> {
-                    System.out.println(GREEN + "Exiting... Thank you!" + RESET);
-                    System.exit(0);
+                case 1: {
+                    System.out.print("Enter message (numeric form): ");
+                    int message = sc.nextInt();
+                    if (message <= 0 || message >= n) {
+                        System.out.println(RED + " Message must be >0 and < n (" + n + ")." + RESET);
+                        break;
+                    }
+                    int cipher = modPow(message, e, n);
+                    System.out.println(GREEN + " Encrypted Message: " + RESET + BLUE + cipher + RESET);
+                    break;
                 }
-                default -> System.out.println(RED + "Invalid choice! Please select 1–3." + RESET);
+
+                case 2: {
+                    System.out.print("Enter encrypted message (numeric form): ");
+                    int cipher = sc.nextInt();
+                    if (cipher <= 0 || cipher >= n) {
+                        System.out.println(RED + " Cipher must be >0 and < n (" + n + ")." + RESET);
+                        break;
+                    }
+                    int decrypted = modPow(cipher, d, n);
+                    System.out.println(GREEN + " Decrypted Message: " + RESET + BLUE + decrypted + RESET);
+                    break;
+                }
+
+                case 3:
+                    System.out.println(GREEN + "Exiting program. Goodbye!" + RESET);
+                    sc.close();
+                    return;
+
+                default:
+                    System.out.println(RED + "Invalid option. Please choose 1, 2, or 3." + RESET);
             }
         }
     }
